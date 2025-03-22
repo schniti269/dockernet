@@ -24,7 +24,7 @@ def check_prerequisites():
         subprocess.run(["python", "generate_docker_compose.py"], check=True)
 
 
-def start_network(limit_neurons=None):
+def start_network(limit_neurons=None, debug=False):
     """Start the containerized neural network."""
     # If limited number of neurons requested, modify the docker-compose file
     if limit_neurons:
@@ -32,13 +32,84 @@ def start_network(limit_neurons=None):
 
     # Start docker-compose - use newer Docker Compose V2 syntax
     print(f"Starting the containerized neural network...")
+
+    # Check if Docker is running
+    try:
+        docker_info_result = subprocess.run(
+            ["docker", "info"], capture_output=True, text=True, check=False
+        )
+        if docker_info_result.returncode != 0:
+            print(
+                "ERROR: Docker doesn't appear to be running. Please start Docker Desktop first."
+            )
+            print(docker_info_result.stderr)
+            return
+    except Exception as e:
+        print(f"Error checking Docker status: {e}")
+        print("Please ensure Docker is installed and running.")
+        return
+
     try:
         # Try with the newer 'docker compose' command (V2)
-        subprocess.run(["docker", "compose", "up", "-d"], check=True)
+        cmd = ["docker", "compose"]
+
+        if debug:
+            # In debug mode, don't run in detached mode so we can see logs
+            cmd.extend(["up", "--build"])
+            print("Debug mode: Running in foreground with logs visible")
+        else:
+            cmd.extend(["up", "-d"])
+
+        result = subprocess.run(cmd, capture_output=debug, text=True)
+
+        if result.returncode != 0:
+            print(f"Error starting containers (code {result.returncode}):")
+            print(
+                result.stderr
+                if hasattr(result, "stderr")
+                else "No error details available"
+            )
+
+            if debug:
+                # In debug mode, print more details
+                print("\nDOCKER-COMPOSE FILE CONTENTS:")
+                with open("docker-compose.yml", "r") as f:
+                    print(f.read())
+
+                print("\nDOCKER VERSION INFO:")
+                subprocess.run(["docker", "version"], check=False)
+
+                print("\nTrying with fewer neuron containers...")
+                limit = 10  # Just try with a few neurons
+                modify_docker_compose(limit)
+                print(
+                    f"Modified docker-compose.yml to include only {limit} neuron containers"
+                )
+
+                retry_cmd = ["docker", "compose", "up", "-d"]
+                print(f"Retrying with command: {' '.join(retry_cmd)}")
+                retry_result = subprocess.run(retry_cmd, capture_output=True, text=True)
+
+                if retry_result.returncode != 0:
+                    print(f"Still failed with error code {retry_result.returncode}:")
+                    print(retry_result.stderr)
+                    print(
+                        "\nConsider trying with docker-compose instead of docker compose"
+                    )
+                    subprocess.run(["docker-compose", "up", "-d"], check=False)
+
+            print(
+                "If problems persist, try running individual containers or manually checking Docker logs."
+            )
+            return
     except subprocess.CalledProcessError:
         # Fall back to the older 'docker-compose' command if needed
         print("Falling back to older docker-compose command...")
-        subprocess.run(["docker-compose", "up", "-d"], check=True)
+        try:
+            subprocess.run(["docker-compose", "up", "-d"], check=True)
+        except Exception as e:
+            print(f"Error with docker-compose fallback: {e}")
+            return
 
     # Wait for services to start
     print("Waiting for services to start...")
@@ -144,26 +215,60 @@ def open_dashboard():
     webbrowser.open("http://localhost:8050")
 
 
+def check_docker_status():
+    """Check if Docker is running correctly."""
+    print("Checking Docker status...")
+
+    try:
+        # Check docker version
+        print("\nDocker Version:")
+        subprocess.run(["docker", "--version"], check=True)
+
+        # Check docker info
+        print("\nDocker Info:")
+        subprocess.run(["docker", "info"], check=True)
+
+        # Check available images
+        print("\nDocker Images:")
+        subprocess.run(["docker", "images"], check=True)
+
+        # Check running containers
+        print("\nRunning Containers:")
+        subprocess.run(["docker", "ps"], check=True)
+
+        print("\nDocker appears to be running correctly.")
+    except subprocess.CalledProcessError as e:
+        print(f"\nError checking Docker status: {e}")
+        print("Please ensure Docker is properly installed and running.")
+    except Exception as e:
+        print(f"\nUnexpected error: {e}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run a containerized CNN for MNIST")
     parser.add_argument(
         "--action",
-        choices=["start", "stop", "test", "dashboard"],
+        choices=["start", "stop", "test", "dashboard", "check"],
         default="start",
-        help="Action to perform: start, stop, test the network, or open dashboard",
+        help="Action to perform: start, stop, test the network, open dashboard, or check Docker status",
     )
     parser.add_argument(
         "--limit", type=int, help="Limit the number of neuron containers (for testing)"
+    )
+    parser.add_argument(
+        "--debug", action="store_true", help="Run in debug mode for troubleshooting"
     )
 
     args = parser.parse_args()
 
     if args.action == "start":
         check_prerequisites()
-        start_network(args.limit)
+        start_network(args.limit, args.debug)
     elif args.action == "stop":
         stop_network()
     elif args.action == "test":
         test_network()
     elif args.action == "dashboard":
         open_dashboard()
+    elif args.action == "check":
+        check_docker_status()

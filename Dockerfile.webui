@@ -2,20 +2,16 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Copy requirements
+# Copy requirements file and install dependencies
 COPY requirements.txt .
-
-# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy web UI
+# Copy web UI files
 COPY web_ui.py .
+COPY neuron_params /app/neuron_params
 
-# Create directory for static files
-RUN mkdir -p /app/static
-
-# Expose Dash port
+# Expose port
 EXPOSE 8050
 
-# Run Dash application
+# Start web UI
 CMD ["python", "web_ui.py"] 
