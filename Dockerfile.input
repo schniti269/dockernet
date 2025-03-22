@@ -1,0 +1,24 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Pillow dependency for image processing
+RUN pip install --no-cache-dir Pillow
+
+# Copy input service
+COPY input_container.py .
+
+# Set environment variable (will be overridden at runtime)
+ENV NEXT_LAYER_HOSTS=""
+
+# Expose port
+EXPOSE 8000
+
+# Run service
+CMD ["python", "input_container.py"] 

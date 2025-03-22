@@ -1,0 +1,180 @@
+services:
+  input-container:
+    build:
+      context: .
+      dockerfile: Dockerfile.input
+    ports:
+      - "8000:8000"
+    environment:
+      - NEXT_LAYER_HOSTS=conv1-neuron-0:8000,conv1-neuron-1:8000,conv1-neuron-2:8000
+      - MONITORING_HOST=monitoring-service:9090
+    volumes:
+      - ./data:/app/data
+    networks:
+      - neural-network
+
+  output-container:
+    build:
+      context: .
+      dockerfile: Dockerfile.output
+    ports:
+      - "8001:8000"
+    environment:
+      - INPUT_CONTAINER_HOST=input-container:8000
+      - MONITORING_HOST=monitoring-service:9090
+    networks:
+      - neural-network
+  
+  monitoring-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.monitoring
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./neuron_params:/app/neuron_params
+    networks:
+      - neural-network
+  
+  web-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.webui
+    ports:
+      - "8050:8050"
+    volumes:
+      - ./neuron_params:/app/neuron_params
+    networks:
+      - neural-network
+    depends_on:
+      - monitoring-service
+      - input-container
+      - output-container
+
+  # Sample neurons from different layers
+  # In a real deployment, we would generate this dynamically based on the model structure
+  
+  # Conv1 layer neurons (just a few samples, would be many more in real application)
+  conv1-neuron-0:
+    build:
+      context: .
+      dockerfile: Dockerfile.neuron
+    volumes:
+      - ./neuron_params:/app/config
+    environment:
+      - NEURON_CONFIG_FILE=/app/config/conv1_neuron_0.json
+      - NEXT_LAYER_HOSTS=conv2-neuron-0:8000,conv2-neuron-1:8000
+      - MONITORING_HOST=monitoring-service:9090
+    networks:
+      - neural-network
+
+  conv1-neuron-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.neuron
+    volumes:
+      - ./neuron_params:/app/config
+    environment:
+      - NEURON_CONFIG_FILE=/app/config/conv1_neuron_1.json
+      - NEXT_LAYER_HOSTS=conv2-neuron-0:8000,conv2-neuron-1:8000
+      - MONITORING_HOST=monitoring-service:9090
+    networks:
+      - neural-network
+
+  conv1-neuron-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.neuron
+    volumes:
+      - ./neuron_params:/app/config
+    environment:
+      - NEURON_CONFIG_FILE=/app/config/conv1_neuron_2.json
+      - NEXT_LAYER_HOSTS=conv2-neuron-0:8000,conv2-neuron-1:8000
+      - MONITORING_HOST=monitoring-service:9090
+    networks:
+      - neural-network
+
+  # Conv2 layer neurons
+  conv2-neuron-0:
+    build:
+      context: .
+      dockerfile: Dockerfile.neuron
+    volumes:
+      - ./neuron_params:/app/config
+    environment:
+      - NEURON_CONFIG_FILE=/app/config/conv2_neuron_0.json
+      - NEXT_LAYER_HOSTS=fc1-neuron-0:8000,fc1-neuron-1:8000
+      - MONITORING_HOST=monitoring-service:9090
+    networks:
+      - neural-network
+
+  conv2-neuron-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.neuron
+    volumes:
+      - ./neuron_params:/app/config
+    environment:
+      - NEURON_CONFIG_FILE=/app/config/conv2_neuron_1.json
+      - NEXT_LAYER_HOSTS=fc1-neuron-0:8000,fc1-neuron-1:8000
+      - MONITORING_HOST=monitoring-service:9090
+    networks:
+      - neural-network
+
+  # FC1 layer neurons
+  fc1-neuron-0:
+    build:
+      context: .
+      dockerfile: Dockerfile.neuron
+    volumes:
+      - ./neuron_params:/app/config
+    environment:
+      - NEURON_CONFIG_FILE=/app/config/fc1_neuron_0.json
+      - NEXT_LAYER_HOSTS=fc2-neuron-0:8000,fc2-neuron-1:8000
+      - MONITORING_HOST=monitoring-service:9090
+    networks:
+      - neural-network
+
+  fc1-neuron-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.neuron
+    volumes:
+      - ./neuron_params:/app/config
+    environment:
+      - NEURON_CONFIG_FILE=/app/config/fc1_neuron_1.json
+      - NEXT_LAYER_HOSTS=fc2-neuron-0:8000,fc2-neuron-1:8000
+      - MONITORING_HOST=monitoring-service:9090
+    networks:
+      - neural-network
+
+  # FC2 layer neurons (output layer)
+  fc2-neuron-0:
+    build:
+      context: .
+      dockerfile: Dockerfile.neuron
+    volumes:
+      - ./neuron_params:/app/config
+    environment:
+      - NEURON_CONFIG_FILE=/app/config/fc2_neuron_0.json
+      - NEXT_LAYER_HOSTS=output-container:8000/collect/0
+      - MONITORING_HOST=monitoring-service:9090
+    networks:
+      - neural-network
+
+  fc2-neuron-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.neuron
+    volumes:
+      - ./neuron_params:/app/config
+    environment:
+      - NEURON_CONFIG_FILE=/app/config/fc2_neuron_1.json
+      - NEXT_LAYER_HOSTS=output-container:8000/collect/1
+      - MONITORING_HOST=monitoring-service:9090
+    networks:
+      - neural-network
+
+networks:
+  neural-network:
+    driver: bridge

@@ -1,0 +1,16 @@
+torch
+torchvision
+fastapi
+uvicorn
+numpy
+requests
+python-multipart
+pydantic
+docker
+prometheus-client
+fastapi-utils
+jinja2
+aiohttp
+plotly
+dash
+pandas

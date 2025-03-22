@@ -1,0 +1,21 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy output service
+COPY output_container.py .
+
+# Set environment variable (will be overridden at runtime)
+ENV INPUT_CONTAINER_HOST="input-container:8000"
+
+# Expose port
+EXPOSE 8000
+
+# Run service
+CMD ["python", "output_container.py"] 

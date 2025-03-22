@@ -1,0 +1,36 @@
+{
+    "structure": {
+        "conv1": {
+            "shape": [
+                32,
+                1,
+                3,
+                3
+            ],
+            "neurons": 32
+        },
+        "conv2": {
+            "shape": [
+                64,
+                32,
+                3,
+                3
+            ],
+            "neurons": 64
+        },
+        "fc1": {
+            "shape": [
+                128,
+                3136
+            ],
+            "neurons": 128
+        },
+        "fc2": {
+            "shape": [
+                10,
+                128
+            ],
+            "neurons": 10
+        }
+    }
+}
